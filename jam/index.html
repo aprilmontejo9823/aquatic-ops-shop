@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>JAM Aquatics Davao</title>
+<meta name="description" content="Fish and aquarium supplies in Davao City. See what is on hand and on pre-order, then message us to order.">
+<meta property="og:title" content="JAM Aquatics Davao">
+<meta property="og:description" content="Fish and aquarium supplies in Davao City. See what is on hand and on pre-order, then message us to order.">
+<meta property="og:type" content="website">
+<meta name="theme-color" content="#0b6e78">
+<link rel="icon" href="../icon.svg" type="image/svg+xml">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700;12..96,800&family=Figtree:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../shop.css?v=1">
+</head>
+<body data-shop="jam" data-root="../">
+<div class="wrap">
+  <header class="top" id="top">
+    <img class="logo hide" id="logo" alt="">
+    <div><h1 class="shopname" id="sname">&nbsp;</h1><p class="tagline" id="stag"></p></div>
+    <a class="msgr hide" id="msgr" target="_blank" rel="noopener" aria-label="Message the shop on Messenger">
+      <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 2C6.5 2 2 6.1 2 11.2c0 2.9 1.4 5.5 3.7 7.2V22l3.4-1.9c.9.3 1.9.4 2.9.4 5.5 0 10-4.1 10-9.2S17.5 2 12 2zm1 12.4-2.5-2.7-5 2.7 5.5-5.8 2.6 2.7 4.9-2.7-5.5 5.8z"/></svg><span>Message us</span></a>
+  </header>
+  <div class="tools" id="tools">
+    <input class="search" id="q" type="search" placeholder="Search fish, plants, gear…" aria-label="Search items" autocomplete="off">
+    <div class="chips" id="chips" role="toolbar" aria-label="Filter items"></div>
+  </div>
+  <main id="main"><div class="grid skel" aria-hidden="true">
+    <div class="item"><div class="photo"></div></div><div class="item"><div class="photo"></div></div><div class="item"><div class="photo"></div></div><div class="item"><div class="photo"></div></div>
+  </div></main>
+  <section class="info hide" id="info" aria-label="Shop information"></section>
+  <footer><img src="../icon.svg" alt=""> Shop page made with Aquatic Ops</footer>
+</div>
+<div class="bar hide" id="bar"><div class="sum"><b id="barTot"></b><span id="barN"></span></div><button id="barGo">Review order</button></div>
+<div id="sheetHost"></div>
+<script src="../shop.js?v=1"></script>
+</body>
+</html>
