@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+{{HEAD}}
+<meta name="theme-color" content="#04161c">
+<meta name="color-scheme" content="dark">
+<link rel="icon" href="{{ROOT}}icon.svg" type="image/svg+xml">
+<link rel="preconnect" href="https://firestore.googleapis.com" crossorigin>
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,800&family=Figtree:wght@400;500;600;700&display=swap">
+<link rel="stylesheet" href="{{ROOT}}shop.css?v={{V}}">
+{{STYLE}}
+</head>
+<body data-shop="{{SHOP}}" data-root="{{ROOT}}" data-page="item" data-item="{{ITEM}}">
+<header class="hero slim" id="hero">
+  <div class="rays" aria-hidden="true"></div>
+  <div class="wrap hero-in">{{HERO}}</div>
+</header>
+<main class="wrap" id="items">
+  <nav class="crumbs" aria-label="Breadcrumb">{{CRUMBS}}</nav>
+  <article class="pitem">
+    <div class="photo">{{PHOTO}}<span class="badges">{{BADGES}}</span></div>
+    <div>
+      <h1>{{NAME}}</h1>
+      <p class="meta">{{META}}</p>
+      <div id="ipLive">{{LIVE}}</div>
+      {{CARE}}
+      <p class="note"><a href="{{SHOPURL}}">See everything at {{SHOPNAME}}</a></p>
+    </div>
+  </article>
+</main>
+<section class="wrap info" id="info" {{INFOHIDE}} aria-label="Shop information">{{INFO}}</section>
+<footer class="wrap foot"><img src="{{ROOT}}icon.svg" alt="" width="22" height="22"><span>Shop page made with <b>Aquatic Ops</b></span></footer>
+<div class="bar" id="bar" hidden><div class="sum"><b id="barTot"></b><span id="barN"></span></div><button type="button" id="barGo">Review order</button></div>
+<div id="sheetHost"></div>
+<script type="application/json" id="pre">{{PRE}}</script>
+<script src="{{ROOT}}shop.js?v={{V}}" defer></script>
+</body>
+</html>

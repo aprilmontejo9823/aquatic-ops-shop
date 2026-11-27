@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+{{HEAD}}
+<meta name="theme-color" content="#04161c">
+<meta name="color-scheme" content="dark">
+<link rel="icon" href="{{ROOT}}icon.svg" type="image/svg+xml">
+<link rel="preconnect" href="https://firestore.googleapis.com" crossorigin>
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,800&family=Figtree:wght@400;500;600;700&display=swap">
+<link rel="stylesheet" href="{{ROOT}}shop.css?v={{V}}">
+{{STYLE}}
+</head>
+<body data-shop="{{SHOP}}" data-root="{{ROOT}}" data-page="{{PAGE}}">
+<a class="skip" href="#items">Skip to items</a>
+<header class="hero" id="hero">
+  <div class="rays" aria-hidden="true"></div><div class="caustics" aria-hidden="true"></div>
+  <div class="wrap hero-in">
+    {{HERO}}
+  </div>
+</header>
+<div class="tools" id="tools">
+  <div class="wrap">
+    <label class="search"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="10.5" cy="10.5" r="6.5"/><path d="m16 16 4.5 4.5"/></svg>
+      <input id="q" type="search" placeholder="Search fish, plants, gear…" aria-label="Search items" autocomplete="off" enterkeyhint="search"></label>
+    <div class="chips" id="chips" role="toolbar" aria-label="Filter items">{{CHIPS}}</div>
+  </div>
+</div>
+<main class="wrap" id="items">
+  <h2 class="vh" id="listTitle">{{LISTTITLE}}</h2>
+  <div id="main">{{MAIN}}</div>
+</main>
+<section class="wrap info" id="info" {{INFOHIDE}} aria-label="Shop information">{{INFO}}</section>
+<footer class="wrap foot"><img src="{{ROOT}}icon.svg" alt="" width="22" height="22"><span>Shop page made with <b>Aquatic Ops</b></span>{{FOOTX}}</footer>
+<div class="bar" id="bar" hidden><div class="sum"><b id="barTot"></b><span id="barN"></span></div><button type="button" id="barGo">Review order</button></div>
+<div id="sheetHost"></div>
+<script type="application/json" id="pre">{{PRE}}</script>
+<script src="{{ROOT}}shop.js?v={{V}}" defer></script>
+</body>
+</html>
