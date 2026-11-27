@@ -3,37 +3,48 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>Aquatic Ops shop page</title>
-<meta name="description" content="Fish and aquarium shop catalog. Made with Aquatic Ops.">
-<meta property="og:title" content="Aquatic Ops shop page">
-<meta property="og:description" content="Fish and aquarium shop catalog. Made with Aquatic Ops.">
+<title>Aquatic Ops shop pages</title>
+<meta name="description" content="Aquarium shops: see what is on hand and order on Messenger.">
+<link rel="canonical" href="https://aprilmontejo9823.github.io/aquatic-ops-shop/">
 <meta property="og:type" content="website">
-<meta name="theme-color" content="#0b6e78">
-<link rel="icon" href="./icon.svg" type="image/svg+xml">
+<meta property="og:title" content="Aquatic Ops shop pages">
+<meta property="og:description" content="Aquarium shops: see what is on hand and order on Messenger.">
+<meta property="og:url" content="https://aprilmontejo9823.github.io/aquatic-ops-shop/">
+<meta property="og:locale" content="en_PH">
+<meta name="twitter:card" content="summary">
+<meta name="theme-color" content="#04161c">
+<meta name="color-scheme" content="dark">
+<link rel="icon" href="icon.svg" type="image/svg+xml">
+<link rel="preconnect" href="https://firestore.googleapis.com" crossorigin>
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700;12..96,800&family=Figtree:wght@400;500;600;700&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="./shop.css?v=1">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,800&family=Figtree:wght@400;500;600;700&display=swap">
+<link rel="stylesheet" href="shop.css?v=c0bda8e0">
+
 </head>
-<body data-shop="" data-root="./">
-<div class="wrap">
-  <header class="top" id="top">
-    <img class="logo hide" id="logo" alt="">
-    <div><h1 class="shopname" id="sname">&nbsp;</h1><p class="tagline" id="stag"></p></div>
-    <a class="msgr hide" id="msgr" target="_blank" rel="noopener" aria-label="Message the shop on Messenger">
-      <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 2C6.5 2 2 6.1 2 11.2c0 2.9 1.4 5.5 3.7 7.2V22l3.4-1.9c.9.3 1.9.4 2.9.4 5.5 0 10-4.1 10-9.2S17.5 2 12 2zm1 12.4-2.5-2.7-5 2.7 5.5-5.8 2.6 2.7 4.9-2.7-5.5 5.8z"/></svg><span>Message us</span></a>
-  </header>
-  <div class="tools" id="tools">
-    <input class="search" id="q" type="search" placeholder="Search fish, plants, gear…" aria-label="Search items" autocomplete="off">
+<body data-shop="" data-root="" data-page="root">
+<a class="skip" href="#items">Skip to items</a>
+<header class="hero" id="hero">
+  <div class="rays" aria-hidden="true"></div><div class="caustics" aria-hidden="true"></div>
+  <div class="wrap hero-in">
+    <div class="brand"><div class="brand-t"><h1 class="shopname" id="sname">Aquarium shops</h1></div></div>
+  </div>
+</header>
+<div class="tools" id="tools">
+  <div class="wrap">
+    <label class="search"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="10.5" cy="10.5" r="6.5"/><path d="m16 16 4.5 4.5"/></svg>
+      <input id="q" type="search" placeholder="Search fish, plants, gear…" aria-label="Search items" autocomplete="off" enterkeyhint="search"></label>
     <div class="chips" id="chips" role="toolbar" aria-label="Filter items"></div>
   </div>
-  <main id="main"><div class="grid skel" aria-hidden="true">
-    <div class="item"><div class="photo"></div></div><div class="item"><div class="photo"></div></div><div class="item"><div class="photo"></div></div><div class="item"><div class="photo"></div></div>
-  </div></main>
-  <section class="info hide" id="info" aria-label="Shop information"></section>
-  <footer><img src="./icon.svg" alt=""> Shop page made with Aquatic Ops</footer>
 </div>
-<div class="bar hide" id="bar"><div class="sum"><b id="barTot"></b><span id="barN"></span></div><button id="barGo">Review order</button></div>
+<main class="wrap" id="items">
+  <h2 class="vh" id="listTitle"></h2>
+  <div id="main"><div class="grid skel" aria-hidden="true"><div class="item"><div class="photo"></div></div><div class="item"><div class="photo"></div></div><div class="item"><div class="photo"></div></div><div class="item"><div class="photo"></div></div></div></div>
+</main>
+<section class="wrap info" id="info" hidden aria-label="Shop information"></section>
+<footer class="wrap foot"><img src="icon.svg" alt="" width="22" height="22"><span>Shop page made with <b>Aquatic Ops</b></span></footer>
+<div class="bar" id="bar" hidden><div class="sum"><b id="barTot"></b><span id="barN"></span></div><button type="button" id="barGo">Review order</button></div>
 <div id="sheetHost"></div>
-<script src="./shop.js?v=1"></script>
+<script type="application/json" id="pre">{"base":"","shops":[{"id":"jam","name":"JAM Aquatics Davao"}]}</script>
+<script src="shop.js?v=c0bda8e0" defer></script>
 </body>
 </html>
