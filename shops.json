@@ -1,0 +1,7 @@
+{
+  "site": "https://aprilmontejo9823.github.io/aquatic-ops-shop/",
+  "google": "",
+  "shops": [
+    { "id": "jam", "name": "JAM Aquatics Davao", "city": "Davao City", "type": "PetStore" }
+  ]
+}
