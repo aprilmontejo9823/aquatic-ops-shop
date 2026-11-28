@@ -98,7 +98,8 @@ AO.chips=(items,filt,sub)=>{
 
 /* categories (the app's main item types: Fish, Accessories, …) */
 AO.cats=items=>{ const m=new Map(); items.forEach(i=>{ const c=i.cat||'Items'; if(!m.has(c)) m.set(c,{name:c,slug:AO.slug(c),avail:0,total:0}); const x=m.get(c); x.total++; if(AO.avail(i)) x.avail++; });
-  const L=[...m.values()].sort((a,b)=>b.total-a.total||a.name.localeCompare(b.name)); const seen={};
+  const fishy=c=>/fish|isda/i.test(c.name)?0:1;   // fish first, then the biggest categories
+  const L=[...m.values()].sort((a,b)=>fishy(a)-fishy(b)||b.total-a.total||a.name.localeCompare(b.name)); const seen={};
   L.forEach(c=>{ let s=c.slug,k=2; while(seen[s]) s=c.slug+'-'+k++; seen[s]=1; c.slug=s; }); return L; };
 /* nav tabs; ctx.catHref(slug), ctx.home (link to the shop's front page) */
 AO.nav=(cats,active,ctx)=>`<nav class="tabs" id="tabs" aria-label="Shop sections"><div class="wrap tabs-in">
