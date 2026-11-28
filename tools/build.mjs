@@ -1,5 +1,5 @@
 // Builds the public shop pages from each shop's live data, so search engines (Google, Facebook previews)
-// see real items, prices and photos. Run by .github/workflows/build.yml; safe to run again any time.
+// see real items, photos and shop details. Run by .github/workflows/build.yml; safe to run again any time.
 // Usage: node tools/build.mjs            (writes into the repo folder)
 //        FS_BASE=http://localhost:8787/... OUT=/tmp/out node tools/build.mjs   (testing)
 import fs from 'node:fs'; import path from 'node:path'; import vm from 'node:vm'; import crypto from 'node:crypto';
@@ -12,27 +12,32 @@ const A=globalThis.AO, esc=A.esc;
 const FS=process.env.FS_BASE||A.FB.base, KEY=A.FB.key;
 const SITE=CFG.site.replace(/\/?$/,'/');
 
-const css=SRC('shop.css'), js=SRC('core.js')+'\n'+SRC('app.js');
+const css=SRC('shop.css'), js=SRC('core.js')+'\n'+SRC('app.js'), LAYOUT=SRC('layout.html');
 const V=crypto.createHash('sha1').update(css+js).digest('hex').slice(0,8);
 const write=(f,data)=>{ const p=path.join(OUT,f); fs.mkdirSync(path.dirname(p),{recursive:true});
   if(fs.existsSync(p)&&Buffer.compare(fs.readFileSync(p),Buffer.from(data))===0) return; fs.writeFileSync(p,data); };
-const fill=(t,o)=>t.replace(/\{\{(\w+)\}\}/g,(m,k)=>k in o?o[k]:'');
+const fill=o=>LAYOUT.replace(/\{\{(\w+)\}\}/g,(m,k)=>k in o?o[k]:'');
 const LS=new RegExp('['+String.fromCharCode(8232,8233)+']','g'), BS=String.fromCharCode(92);  // keep </script> and line separators out of inline JSON
 const jsonScript=o=>JSON.stringify(o).replace(/</g,BS+'u003c').replace(LS,c=>BS+'u'+c.charCodeAt(0).toString(16));
 const ldScript=o=>`<script type="application/ld+json">${jsonScript(o)}</script>`;
 const plain=s=>String(s||'').replace(/\s+/g,' ').trim();
 const cut=(s,n)=>{ s=plain(s); return s.length>n?s.slice(0,n-1).replace(/\s+\S*$/,'')+'…':s; };
+const color=s=>/^#[0-9a-f]{6}$/i.test(s.color||'')?`<style>:root{--accent:${s.color}}</style>`:'';
 
 async function get(url){ const r=await fetch(url); if(r.status===404) return null; if(!r.ok) throw new Error(url.split('?')[0]+' → '+r.status); return r.json(); }
+async function list(id,col){ let page='', out=[];
+  do{ const r=await get(`${FS}/shops/${id}/${col}?pageSize=50&key=${KEY}${page?'&pageToken='+page:''}`);
+    (r&&r.documents||[]).forEach(doc=>out.push({id:doc.name.split('/').pop(),...A.obj(doc.fields||{})})); page=r&&r.nextPageToken||''; }while(page);
+  return out.filter(x=>/^[\w-]{1,40}$/.test(x.id)); }
 async function loadShop(id){
   const d=await get(`${FS}/shops/${id}?key=${KEY}`); if(!d) return null;
-  const s=A.obj(d.fields||{}); let page='', items=[];
-  if(s.active===true) do{
-    const r=await get(`${FS}/shops/${id}/items?pageSize=60&key=${KEY}${page?'&pageToken='+page:''}`);
-    (r&&r.documents||[]).forEach(doc=>items.push({id:doc.name.split('/').pop(),...A.obj(doc.fields||{})})); page=r&&r.nextPageToken||'';
-  }while(page);
-  return {s,items:items.filter(i=>i.name&&/^[\w-]{1,40}$/.test(i.id))};
+  const s=A.obj(d.fields||{});
+  if(s.active!==true) return {s,items:[],gal:[]};
+  return {s,items:(await list(id,'items')).filter(i=>i.name),gal:(await list(id,'gallery')).sort((a,b)=>(a.ord||0)-(b.ord||0))};
 }
+/* a short Google Maps link (maps.app.goo.gl) → the full link, which has the place and coordinates */
+async function resolveMap(u){ if(!/^https:\/\/(maps\.app\.goo\.gl|goo\.gl\/maps)\//.test(u||'')) return u||'';
+  try{ const ac=new AbortController(), t=setTimeout(()=>ac.abort(),8000); const r=await fetch(u,{redirect:'follow',signal:ac.signal}); clearTimeout(t); return r.url||u; }catch(e){ return u; } }
 const IMG=/^data:image\/(jpeg|webp|png);base64,([A-Za-z0-9+/=]+)$/;
 const extOf=t=>t==='jpeg'?'jpg':t;
 
@@ -49,75 +54,93 @@ function head({title,desc,url,image,type,ld,robots}){
 async function buildShop(conf,sitemap){
   const id=conf.id, dir=id+'/', url=SITE+dir;
   const got=await loadShop(id);
+  const rm=p=>fs.rmSync(path.join(OUT,dir,p),{recursive:true,force:true});
   if(!got||got.s.active!==true||(got.s.until&&got.s.until<new Date().toISOString().slice(0,10))){
-    // not open: a plain page that checks live (no items kept for search engines)
-    write(dir+'index.html',fill(SRC('page.html'),{ROOT:'../',SHOP:id,PAGE:'shop',V,HEAD:head({title:(got&&got.s.name)||'Shop page',desc:'Aquarium shop page.',robots:'noindex'}),
-      HERO:A.hero(got?got.s:{name:'Shop page'},[],'',true),MAIN:'<div class="grid skel" aria-hidden="true"></div>',INFOHIDE:'hidden',PRE:jsonScript({base:''})}));
-    fs.rmSync(path.join(OUT,dir,'p'),{recursive:true,force:true}); fs.rmSync(path.join(OUT,dir,'img'),{recursive:true,force:true});
-    return;
+    // not open: a plain page that checks live (nothing kept for search engines)
+    const s=got?got.s:{name:'Shop page'};
+    write(dir+'index.html',fill({ROOT:'../',SHOP:id,PAGE:'home',V,HEAD:head({title:s.name||'Shop page',desc:'Aquarium shop page.',robots:'noindex'}),
+      HEADER:A.hero(s,[],{h1:true,ctx:{catHref:()=>'#'}}),BODY:'<div class="wrap state"><p>Loading…</p></div>',PRE:jsonScript({folder:1,base:''})}));
+    rm('p'); rm('img'); rm('c'); return;
   }
-  const {s,items}=got, now=Date.now();
+  const {s,items,gal}=got, now=Date.now(), city=conf.city||'';
   // pictures → files
-  const imgDir=path.join(OUT,dir,'img'); fs.mkdirSync(imgDir,{recursive:true});
-  const keep=new Set(), img={};
-  let logo='';
-  { const m=IMG.exec(s.logo||'')||/^data:image\/(png|jpeg|webp);base64,([A-Za-z0-9+/=]+)$/.exec(s.logo||''); if(m){ logo='img/logo.'+extOf(m[1]); keep.add('logo.'+extOf(m[1])); write(dir+logo,Buffer.from(m[2],'base64')); } }
+  fs.mkdirSync(path.join(OUT,dir,'img'),{recursive:true});
+  const keep=new Set(), img={}, put=(name,b64)=>{ keep.add(name); write(dir+'img/'+name,Buffer.from(b64,'base64')); return 'img/'+name; };
+  let logo=''; { const m=/^data:image\/(png|jpeg|webp);base64,([A-Za-z0-9+/=]+)$/.exec(s.logo||''); if(m) logo=put('logo.'+extOf(m[1]),m[2]); }
+  const photos=gal.map(g=>{ const m=IMG.exec(g.img||''); return m?{src:put('g-'+g.id+'.'+extOf(m[1]),m[2])+'?v='+(g.updated||0).toString(36),cap:g.cap||''}:null; }).filter(Boolean);
   for(const i of items){
-    const m=IMG.exec(i.img||''); const u=i.updated||0;
-    if(m){ const f=i.id+'.'+extOf(m[1]); keep.add(f); write(dir+'img/'+f,Buffer.from(m[2],'base64')); img[i.id]={u,f:'img/'+f+'?v='+u.toString(36)}; }
-    else img[i.id]={u,f:''};
+    const m=IMG.exec(i.img||''), u=i.updated||0;
+    img[i.id]=m?{u,f:put(i.id+'.'+extOf(m[1]),m[2])+'?v='+u.toString(36)}:{u,f:''};
     delete i.img;
   }
-  for(const f of fs.readdirSync(imgDir)) if(!keep.has(f)) fs.rmSync(path.join(imgDir,f));
+  for(const f of fs.readdirSync(path.join(OUT,dir,'img'))) if(!keep.has(f)) fs.rmSync(path.join(OUT,dir,'img',f));
   const pages=Object.fromEntries(items.map(i=>[i.id,1]));
   const pub={...s}; delete pub.owner; delete pub.logo;
-  const sorted=A.sort(items,now), on=items.filter(i=>i.stock>0).length, pre=items.filter(A.isPre).length;
-  const city=conf.city||'';
-  const title=`${s.name} – ${conf.title||'Aquarium fish & supplies'+(city?' in '+city:'')}`;
-  const desc=cut(`${s.tagline?s.tagline+'. ':''}${on} item${on===1?'':'s'} on hand${pre?`, ${pre} on pre-order`:''}${city?' in '+city:''}. See photos and prices, then order on Messenger.`,158);
-  const abs=f=>f?url+f.replace(/\?.*$/,''):'';
-  const firstImg=sorted.find(i=>img[i.id].f);
-  const store={'@type':conf.type||'PetStore','@id':url+'#store',name:s.name,url,description:plain(s.about||s.tagline||desc),
-    image:logo?abs(logo):undefined,logo:logo?abs(logo):undefined,telephone:A.phone(s)||undefined,
+  const mapLink=await resolveMap(s.map), mapq=s.address||s.map?A.mapQuery(s,mapLink):'';
+  const geo=/^(-?\d+\.\d+),(-?\d+\.\d+)$/.exec(mapq);
+  const cats=A.cats(items), ask=A.askMode(s,items), abs=f=>f?url+f.replace(/\?.*$/,''):'';
+  const at=base=>({shop:s,now,img:i=>img[i.id].f?base+img[i.id].f:'',href:i=>base+'p/'+i.id+'/',abs:i=>url+'p/'+i.id+'/',inOrder:()=>0,catHref:sl=>base+'c/'+sl+'/',home:base||'./'});
+  const pre=(base,extra)=>jsonScript({folder:1,base,site:url,shop:pub,items,img,pages,mapq,...extra});
+  const logoAt=base=>logo?base+logo:'';
+  const firstImg=A.sort(items.filter(A.avail),now).find(i=>img[i.id].f);
+  const store={'@type':conf.type||'PetStore','@id':url+'#store',name:s.name,url,description:plain(s.about||s.tagline||''),slogan:s.motto||undefined,foundingDate:s.started||undefined,
+    image:[...photos.map(p=>abs(p.src)),logo?abs(logo):''].filter(Boolean),logo:logo?abs(logo):undefined,telephone:A.phone(s)||undefined,
     address:s.address?{'@type':'PostalAddress',streetAddress:plain(s.address),addressLocality:city||undefined,addressCountry:'PH'}:undefined,
-    hasMap:A.safeUrl(s.map)||undefined,sameAs:A.fbPage(s)?[A.fbPage(s)]:undefined,currenciesAccepted:'PHP',paymentAccepted:s.payment?plain(s.payment):undefined};
-  const ld={'@context':'https://schema.org','@graph':[store,{'@type':'WebSite','@id':url+'#site',url,name:s.name,inLanguage:'en-PH'},
-    {'@type':'ItemList','name':s.name+' items','numberOfItems':sorted.length,'itemListElement':sorted.slice(0,200).map((i,k)=>({'@type':'ListItem',position:k+1,url:url+'p/'+i.id+'/',name:A.label(i)}))}]};
-  const ctx={shop:s,now,img:i=>img[i.id].f||'',href:i=>'p/'+i.id+'/',inOrder:()=>0};
-  const info=A.info(s);
-  const preData={base:'',shop:pub,items,img,pages};
-  write(dir+'index.html',fill(SRC('page.html'),{ROOT:'../',SHOP:id,PAGE:'shop',V,
-    HEAD:head({title,desc,url,image:firstImg?abs(img[firstImg.id].f):abs(logo),ld}),
-    STYLE:/^#[0-9a-f]{6}$/i.test(s.color||'')?`<style>:root{--accent:${s.color}}</style>`:'',
-    HERO:A.hero(s,items,logo,true),CHIPS:A.chips(items,'all',''),LISTTITLE:esc(`Items at ${s.name}`),
-    MAIN:sorted.length?'<div class="grid">'+sorted.map(i=>A.card(i,ctx)).join('')+'</div>':'<p class="empty">No items posted yet. Message the shop to ask what is available.</p>',
-    INFO:info,INFOHIDE:info?'':'hidden',PRE:jsonScript(preData)}));
-  sitemap.push({loc:url,last:Math.max(s.updated||0,...items.map(i=>i.updated||0))});
+    geo:geo?{'@type':'GeoCoordinates',latitude:+geo[1],longitude:+geo[2]}:undefined,
+    hasMap:A.safeUrl(mapLink)||A.safeUrl(s.map)||undefined,sameAs:A.fbPage(s)?[A.fbPage(s)]:undefined,currenciesAccepted:'PHP',paymentAccepted:s.payment?plain(s.payment):undefined};
+  const footAt=base=>A.foot(s,cats,at(base));
+
+  // front page
+  { const c=at(''), avail=items.filter(A.avail).length;
+    const title=`${s.name} – ${conf.title||'Aquarium fish & supplies'+(city?' in '+city:'')}`;
+    const desc=cut(`${s.motto?s.motto+'. ':s.tagline?s.tagline+'. ':''}${avail} item${avail===1?'':'s'} available${city?' in '+city:''}: ${cats.map(x=>x.name.toLowerCase()).join(', ')}. See photos, then message us on Messenger.`,158);
+    write(dir+'index.html',fill({ROOT:'../',SHOP:id,PAGE:'home',V,STYLE:color(s),
+      HEAD:head({title,desc,url,image:photos[0]?abs(photos[0].src):firstImg?abs(img[firstImg.id].f):abs(logo),
+        ld:{'@context':'https://schema.org','@graph':[store,{'@type':'WebSite','@id':url+'#site',url,name:s.name,inLanguage:'en-PH'}]}}),
+      HEADER:A.hero(s,items,{logo:logoAt(''),photo:photos[0]&&photos[0].src,h1:true,cats,ctx:c,mapq}),NAV:A.nav(cats,'home',c),
+      BODY:A.home(s,items,photos,c,mapq),FOOT:footAt(''),FAB:A.fab(s),PRE:pre('',{})}));
+    sitemap.push({loc:url,last:Math.max(s.updated||0,...items.map(i=>i.updated||0)),img:photos[0]?abs(photos[0].src):''});
+  }
+  // one page per category
+  const keepC=new Set();
+  for(const cat of cats){
+    keepC.add(cat.slug); const base='../../', c=at(base), cu=url+'c/'+cat.slug+'/', L=items.filter(i=>(i.cat||'Items')===cat.name);
+    const title=`${cat.name} available at ${s.name}${city?' – '+city:''}`;
+    const desc=cut(`${cat.avail} ${cat.name.toLowerCase()} available at ${s.name}${city?', '+city:''}. ${[...new Set(L.filter(A.avail).map(i=>i.sub||i.name))].slice(0,8).join(', ')}. ${ask?'Ask the price on Messenger.':'See prices and photos.'}`,158);
+    const ld={'@context':'https://schema.org','@graph':[{'@type':'CollectionPage','@id':cu,url:cu,name:title,isPartOf:{'@id':url+'#site'}},
+      {'@type':'ItemList',numberOfItems:L.length,itemListElement:A.sort(L,now).slice(0,200).map((i,k)=>({'@type':'ListItem',position:k+1,url:url+'p/'+i.id+'/',name:A.label(i)}))},
+      {'@type':'BreadcrumbList',itemListElement:[{'@type':'ListItem',position:1,name:s.name,item:url},{'@type':'ListItem',position:2,name:cat.name,item:cu}]}]};
+    const ci=A.sort(L.filter(A.avail),now).find(i=>img[i.id].f);
+    write(dir+'c/'+cat.slug+'/index.html',fill({ROOT:'../../../',SHOP:id,PAGE:'cat',CAT:cat.slug,V,STYLE:color(s),
+      HEAD:head({title,desc,url:cu,image:ci?abs(img[ci.id].f):abs(logo),ld}),
+      HEADER:A.hero(s,items,{logo:logoAt(base),slim:true,home:base}),NAV:A.nav(cats,cat.slug,c),BODY:A.catPage(cat,L,c),FOOT:footAt(base),FAB:A.fab(s),PRE:pre(base,{})}));
+    sitemap.push({loc:cu,last:Math.max(0,...L.map(i=>i.updated||0))});
+  }
+  if(fs.existsSync(path.join(OUT,dir,'c'))) for(const d of fs.readdirSync(path.join(OUT,dir,'c'))) if(!keepC.has(d)) rm('c/'+d);
 
   // one page per item
-  const pdir=path.join(OUT,dir,'p'); fs.mkdirSync(pdir,{recursive:true});
-  for(const d of fs.readdirSync(pdir)) if(!pages[d]) fs.rmSync(path.join(pdir,d),{recursive:true,force:true});
-  const heroSlim=`<div class="brand">${logo?`<a href="../../"><img class="logo" src="../../${esc(logo)}" alt="${esc(s.name)} logo" width="46" height="46"></a>`:''}<div class="brand-t"><p class="shopname"><a href="../../">${esc(s.name)}</a></p></div></div>`;
+  fs.mkdirSync(path.join(OUT,dir,'p'),{recursive:true});
+  for(const d of fs.readdirSync(path.join(OUT,dir,'p'))) if(!pages[d]) rm('p/'+d);
   for(const i of items){
-    const iu=url+'p/'+i.id+'/', f=img[i.id].f, label=A.label(i);
-    const t=`${label} – ${A.peso(A.priceOf(i))} | ${s.name}`;
-    const state=i.stock>0?`${i.stock} on hand`:i.pre?`pre-order${i.eta?', arrives '+A.fmtEta(i.eta):''}`:'sold out';
-    const d=cut(`${label} at ${s.name}${city?', '+city:''}: ${A.peso(A.priceOf(i))}, ${state}. ${i.care?plain(i.care)+' ':''}Order on Messenger.`,158);
-    const prod={'@type':'Product','@id':iu+'#product',name:label,sku:i.id,category:i.cat||undefined,image:f?[abs(f)]:undefined,description:plain(i.care)||d,
-      brand:undefined,offers:{'@type':'Offer',url:iu,priceCurrency:'PHP',price:String(A.priceOf(i)),availability:A.avail(i),itemCondition:'https://schema.org/NewCondition',seller:{'@id':url+'#store'}}};
-    const crumbsLd={'@type':'BreadcrumbList',itemListElement:[{'@type':'ListItem',position:1,name:s.name,item:url},{'@type':'ListItem',position:2,name:label,item:iu}]};
-    const live=`<div class="price${A.onSale(i)?' sale':''}">${A.peso(A.priceOf(i))}${A.onSale(i)?`<s>${A.peso(i.price)}</s>`:''}</div>${A.stockLine(i)}
-<div class="row">${A.isOut(i)?`<a class="go" target="_blank" rel="noopener" href="${esc(A.msgLink(s,'Hi! Kailan po babalik ang '+label+'?'))}">Ask when it's back</a>`
-  :`<a class="go" target="_blank" rel="noopener" href="${esc(A.msgLink(s,'Hi! Available pa po ba ang '+label+' ('+A.peso(A.priceOf(i))+')?'))}">Order on Messenger</a><button class="add" type="button" data-add="${esc(i.id)}" style="margin:0">Add to order list</button>`}</div>`;
-    write(dir+'p/'+i.id+'/index.html',fill(SRC('item.html'),{ROOT:'../../../',SHOP:id,ITEM:i.id,V,
-      HEAD:head({title:t,desc:d,url:iu,image:f?abs(f):abs(logo),type:'product',ld:{'@context':'https://schema.org','@graph':[prod,crumbsLd]}}),
-      STYLE:/^#[0-9a-f]{6}$/i.test(s.color||'')?`<style>:root{--accent:${s.color}}</style>`:'',
-      HERO:heroSlim,CRUMBS:`<a href="../../">${esc(s.name)}</a> / ${esc(i.cat||'Items')}`,
-      PHOTO:f?`<img src="../../${esc(f)}" alt="${esc(A.alt(i))}" width="480" height="480" fetchpriority="high">`:`<span class="ph">${A.FISH}</span>`,
-      BADGES:A.badges(i,now),NAME:esc(i.name),META:esc([i.size,i.cat].filter(Boolean).join(' · ')),LIVE:live,
-      CARE:i.care?`<div class="care"><h2 style="margin:0 0 4px;font:600 15px var(--disp)">Care and info</h2>${esc(i.care)}</div>`:'',
-      SHOPURL:'../../',SHOPNAME:esc(s.name),INFO:info,INFOHIDE:info?'':'hidden',
-      PRE:jsonScript({base:'../../',shop:pub,items:[i],img:{[i.id]:img[i.id]},pages})}));
+    const base='../../', c=at(base), iu=url+'p/'+i.id+'/', f=img[i.id].f, label=A.label(i), cat=cats.find(x=>x.name===(i.cat||'Items'));
+    const priced=A.hasPrice(i);
+    const t=`${label}${priced?' – '+A.peso(A.priceOf(i)):''} | ${s.name}`;
+    const st=i.stock>0?`${i.stock} on hand`:i.pre?`pre-order${i.eta?', arrives '+A.fmtEta(i.eta):''}`:'sold out';
+    const d=cut(`${label} at ${s.name}${city?', '+city:''}: ${priced?A.peso(A.priceOf(i))+', ':''}${st}. ${i.care?plain(i.care)+' ':''}${priced?'Order':'Ask the price'} on Messenger.`,158);
+    const prod={'@type':'Product','@id':iu+'#product',name:label,sku:i.id,category:[i.cat,i.sub].filter(Boolean).join(' > ')||undefined,image:f?[abs(f)]:undefined,description:plain(i.care)||d,
+      offers:priced?{'@type':'Offer',url:iu,priceCurrency:'PHP',price:String(A.priceOf(i)),availability:A.schemaAvail(i),itemCondition:'https://schema.org/NewCondition',seller:{'@id':url+'#store'}}:undefined};
+    const crumbs={'@type':'BreadcrumbList',itemListElement:[{'@type':'ListItem',position:1,name:s.name,item:url},cat&&{'@type':'ListItem',position:2,name:cat.name,item:url+'c/'+cat.slug+'/'},{'@type':'ListItem',position:cat?3:2,name:label,item:iu}].filter(Boolean)};
+    const live=`${priced?`<div class="price${A.onSale(i)?' sale':''}">${A.peso(A.priceOf(i))}${A.onSale(i)?`<s>${A.peso(i.price)}</s>`:''}</div>`:''}${A.stockLine(i)}
+<div class="row">${priced&&A.avail(i)?`<a class="go" target="_blank" rel="noopener" href="${esc(A.msgLink(s,'Hi '+s.name+'! Available pa po ba ang '+label+' ('+A.peso(A.priceOf(i))+')?\n'+iu))}">${A.MSGR}<span>Order on Messenger</span></a><button class="add" type="button" data-add="${esc(i.id)}" style="margin:0">Add to order list</button>`:A.action(i,c,'go')}<button type="button" data-share="${esc(i.id)}">Share</button></div>`;
+    const body=`<main class="wrap" id="items"><nav class="crumbs" aria-label="Breadcrumb"><a href="${base}">Home</a>${cat?` / <a href="${base}c/${cat.slug}/">${esc(cat.name)}</a>`:''}${i.sub?` / ${esc(i.sub)}`:''}</nav>
+<article class="pitem"><div class="photo">${f?`<img src="${base}${esc(f)}" alt="${esc(A.alt(i))}" width="480" height="480" fetchpriority="high">`:`<span class="ph">${A.FISH}</span>`}<span class="badges">${A.badges(i,now)}</span></div>
+<div><h1>${esc(i.name)}</h1><p class="meta">${esc(A.meta(i))}</p><div id="ipLive">${live}</div>
+${i.care?`<div class="care"><h2>Care and info</h2>${esc(i.care)}</div>`:''}
+${cat?`<p class="note"><a href="${base}c/${cat.slug}/">See all ${esc(cat.name.toLowerCase())} available</a></p>`:''}</div></article></main>`;
+    write(dir+'p/'+i.id+'/index.html',fill({ROOT:'../../../',SHOP:id,PAGE:'item',ITEM:i.id,CAT:cat?cat.slug:'',V,STYLE:color(s),
+      HEAD:head({title:t,desc:d,url:iu,image:f?abs(f):abs(logo),type:'product',ld:{'@context':'https://schema.org','@graph':[prod,crumbs]}}),
+      HEADER:A.hero(s,items,{logo:logoAt(base),slim:true,home:base}),NAV:A.nav(cats,cat?cat.slug:'',c),BODY:body,FOOT:footAt(base),FAB:A.fab(s),
+      PRE:jsonScript({folder:1,base,site:url,shop:pub,items:[i],img:{[i.id]:img[i.id]},pages})}));
     sitemap.push({loc:iu,last:i.updated||0,img:f?abs(f):''});
   }
 }
@@ -125,9 +148,9 @@ async function buildShop(conf,sitemap){
 const sitemap=[];
 for(const conf of CFG.shops){ try{ await buildShop(conf,sitemap); console.log('built',conf.id); }catch(e){ console.error('skip',conf.id,e.message); process.exitCode=1; } }
 // the page for any shop (?s=id) and the list of shops
-write('index.html',fill(SRC('page.html'),{ROOT:'',SHOP:'',PAGE:'root',V,HEAD:head({title:'Aquatic Ops shop pages',desc:'Aquarium shops: see what is on hand and order on Messenger.',url:SITE}),
-  HERO:'<div class="brand"><div class="brand-t"><h1 class="shopname" id="sname">Aquarium shops</h1></div></div>',MAIN:'<div class="grid skel" aria-hidden="true"><div class="item"><div class="photo"></div></div><div class="item"><div class="photo"></div></div><div class="item"><div class="photo"></div></div><div class="item"><div class="photo"></div></div></div>',
-  INFOHIDE:'hidden',PRE:jsonScript({base:'',shops:CFG.shops.map(s=>({id:s.id,name:s.name||s.id}))})}));
+write('index.html',fill({ROOT:'',SHOP:'',PAGE:'root',V,HEAD:head({title:'Aquatic Ops shop pages',desc:'Aquarium shops: see what is available and message the shop on Messenger.',url:SITE}),
+  HEADER:'<header class="hero slim"><div class="wrap hero-in"><span class="brand"><span class="shopname">Aquarium shops</span></span></div></header>',BODY:'<div class="wrap state"><p>Loading…</p></div>',
+  PRE:jsonScript({base:'',shops:CFG.shops.map(s=>({id:s.id,name:s.name||s.id}))})}));
 write('shop.css',css); write('shop.js',js); write('icon.svg',SRC('icon.svg'));
 write('sitemap.xml',`<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9" xmlns:image="http://www.google.com/schemas/sitemap-image/1.1">\n`+
   sitemap.map(u=>`<url><loc>${esc(u.loc)}</loc>${u.last?`<lastmod>${new Date(u.last).toISOString().slice(0,10)}</lastmod>`:''}${u.img?`<image:image><image:loc>${esc(u.img)}</image:loc></image:image>`:''}</url>`).join('\n')+'\n</urlset>\n');
