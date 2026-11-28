@@ -132,7 +132,9 @@ AO.about=s=>{ if(!(s.about||s.motto||s.vision||s.mission)) return '';
 ${s.about?`<p class="lead">${esc(s.about)}</p>`:''}${s.motto?`<blockquote class="motto-q"><p>${esc(s.motto)}</p></blockquote>`:''}
 ${s.vision||s.mission?`<div class="vm">${s.vision?`<div class="panel">${icon('vision')}<h3>Vision</h3><p>${esc(s.vision)}</p></div>`:''}${s.mission?`<div class="panel">${icon('mission')}<h3>Mission</h3><p>${esc(s.mission)}</p></div>`:''}</div>`:''}</section>`; };
 AO.gallery=(gal,s)=>gal.length?`<section class="wrap sect" aria-labelledby="hGal"><h2 class="sh" id="hGal">Inside the shop</h2><div class="gal">${gal.map((g,k)=>`<figure class="${k===0&&gal.length>2?'wide':''}"><img src="${esc(g.src)}" alt="${esc(g.cap||s.name+' store photo')}" loading="lazy" decoding="async" width="1200" height="900">${g.cap?`<figcaption>${esc(g.cap)}</figcaption>`:''}</figure>`).join('')}</div></section>`:'';
-AO.services=s=>{ const L=String(s.services||'').split('\n').map(x=>x.replace(/^[\s•*\-–]+/,'').trim()).filter(Boolean).slice(0,12); if(!L.length) return '';
+AO.services=s=>{ let txt=String(s.services||'').replace(/^\s*services?\s*:\s*/i,'');
+  if(!/\n/.test(txt.trim())&&/[,;]/.test(txt)) txt=txt.replace(/[,;]\s*/g,'\n');   // one line with commas → one service each
+  const L=txt.split('\n').map(x=>x.replace(/^[\s•*\-–]+/,'').replace(/[.]+$/,'').trim()).filter(Boolean).slice(0,12); if(!L.length) return '';
   return `<section class="wrap sect" id="services" aria-labelledby="hServ"><h2 class="sh" id="hServ">Services</h2><div class="serv">${L.map(x=>{ const m=/^(.{2,60}?)\s*(?:—|–| - |:)\s*(.+)$/.exec(x);
     return `<div class="panel">${icon('service')}<h3>${esc(m?m[1]:x)}</h3>${m?`<p>${esc(m[2])}</p>`:''}</div>`; }).join('')}</div></section>`; };
 AO.steps=(s,ask)=>`<section class="wrap sect" aria-labelledby="hHow"><h2 class="sh" id="hHow">How to order</h2><ol class="steps">
